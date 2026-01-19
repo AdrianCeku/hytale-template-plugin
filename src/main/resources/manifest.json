@@ -1,14 +1,14 @@
 {
-    "Group": "Example",
-    "Name": "ExamplePlugin",
+    "Group": "sifro",
+    "Name": "utils",
     "Version": "0.0.2",
-    "Description": "An example plugin for HyTale!",
+    "Description": "Util functions for hytale!",
     "Authors": [
         {
-            "Name": "It's you!"
+            "Name": "Sifro"
         }
     ],
-    "Website": "example.org",
+    "Website": "sifro",
     "ServerVersion": "*",
     "Dependencies": {
         
@@ -17,6 +17,6 @@
         
     },
     "DisabledByDefault": false,
-    "Main": "org.example.plugin.ExamplePlugin",
-    "IncludesAssetPack": true
+    "Main": "sifro.plugin.Utils",
+    "IncludesAssetPack": false
 }
