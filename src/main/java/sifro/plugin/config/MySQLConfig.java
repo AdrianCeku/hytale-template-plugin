@@ -1,12 +1,24 @@
 package sifro.plugin.config;
-
-public class MySQLConfig extends DBConfig {
+/**
+ * Configuration class for MySQL database connections.
+ */
+public class MySQLConfig extends DatabaseConfig {
     String host;
     String port;
     String database;
     String username;
     String password;
 
+    /**
+     * Constructs a MySQLConfig with the specified parameters.
+     *
+     * @param host     The hostname of the MySQL server.
+     * @param port     The port number of the MySQL server.
+     * @param database The name of the database.
+     * @param username The username for authentication.
+     * @param password The password for authentication.
+     * @param poolSize The size of the connection pool.
+     */
     MySQLConfig(String host, String port, String database, String username, String password, int poolSize) {
         super(poolSize);
         this.host = host;
@@ -17,22 +29,22 @@ public class MySQLConfig extends DBConfig {
     }
 
     public String getPassword() {
-        return password;
+        return this.password;
     }
 
     public String getUsername() {
-        return username;
+        return this.username;
     }
 
     public String getDatabase() {
-        return database;
+        return this.database;
     }
 
     public String getPort() {
-        return port;
+        return this.port;
     }
 
     public String getHost() {
-        return host;
+        return this.host;
     }
 }

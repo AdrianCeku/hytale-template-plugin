@@ -17,7 +17,7 @@ import java.sql.SQLException;
  */
 public class QueryCommand extends CommandBase {
     private final RequiredArg<String> query;
-    private final DB db;
+    private final DatabaseManager databaseManager;
 
     public QueryCommand(String pluginName, String pluginVersion) {
         super("query", "Executes a query on the db.");
@@ -25,7 +25,7 @@ public class QueryCommand extends CommandBase {
         query = withRequiredArg("query", "The SQL query to execute.", ArgTypes.STRING);
 
         SQLiteConfig conf = new SQLiteConfig(new File("./test.sqlite"), 10);
-        db = new DB(conf);
+        databaseManager = new DatabaseManager(conf);
     }
 
     @Override
@@ -35,8 +35,8 @@ public class QueryCommand extends CommandBase {
             sqlQuery = sqlQuery.substring(1, sqlQuery.length() - 1);
         }
         try {
-            db.execute(sqlQuery);
-        } catch (SQLException e) {
+            databaseManager.execute(sqlQuery);
+        } catch (Exception e) {
             ctx.sendMessage(Message.raw(e.getMessage()));
         }
     }
