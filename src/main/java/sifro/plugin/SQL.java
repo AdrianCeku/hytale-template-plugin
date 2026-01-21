@@ -4,6 +4,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import sifro.plugin.config.DatabaseConfig;
 import sifro.plugin.config.DatabaseConfigEntry;
+import sifro.plugin.managers.DatabaseManager;
 
 import javax.annotation.Nonnull;
 import java.io.File;

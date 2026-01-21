@@ -7,10 +7,10 @@ import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredAr
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.CommandBase;
 import sifro.plugin.config.SQLiteConfig;
+import sifro.plugin.managers.DatabaseManager;
 
 import javax.annotation.Nonnull;
 import java.io.File;
-import java.sql.SQLException;
 
 /**
  * This is an example command that will simply print the name of the plugin in chat when used.
