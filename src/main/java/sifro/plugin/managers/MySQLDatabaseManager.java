@@ -23,9 +23,19 @@ import java.util.concurrent.*;
 public final class MySQLDatabaseManager extends DatabaseManager {
 
     /**
+     * Hikari datasource for MySQL connections.
+     */
+    private final HikariDataSource hikariDataSource;
+
+    /**
      * Executor used for both reads and writes.
      */
     private final ExecutorService executor;
+
+    /**
+     * The supplied config.
+     */
+    private final MySQLConfig config;
 
     /**
      * Creates a MySQLDatabaseManager using the provided config.
@@ -33,49 +43,46 @@ public final class MySQLDatabaseManager extends DatabaseManager {
      * @param conf MySQL configuration
      */
     public MySQLDatabaseManager(MySQLConfig conf) {
-        super(createDataSource(conf));
+        this.config = conf;
         this.executor = Executors.newCachedThreadPool();
+        this.hikariDataSource = createDataSource();
     }
 
     /**
      * Builds and configures a Hikari datasource for MySQL.
      *
-     * @param conf mysql config
      * @return configured datasource
      */
-    private static HikariDataSource createDataSource(MySQLConfig conf) {
-        Objects.requireNonNull(conf, "conf");
-
+    private  HikariDataSource createDataSource() {
         HikariConfig cfg = new HikariConfig();
 
         String jdbcUrl = String.format(
                 "jdbc:mysql://%s:%s/%s",
-                conf.getHost(),
-                conf.getPort(),
-                conf.getDatabase()
+                config.getHost(),
+                config.getPort(),
+                config.getDatabase()
         );
 
         cfg.setJdbcUrl(jdbcUrl);
-        cfg.setUsername(conf.getUsername());
-        cfg.setPassword(conf.getPassword());
+        cfg.setUsername(config.getUsername());
+        cfg.setPassword(config.getPassword());
 
         // Pool sizing
-        cfg.setMaximumPoolSize(Math.max(1, conf.getPoolSize()));
-        cfg.setMinimumIdle(Math.min(2, Math.max(0, conf.getPoolSize())));
+        cfg.setMaximumPoolSize(Math.max(1, config.getPoolSize()));
+        cfg.setMinimumIdle(Math.min(2, Math.max(0, config.getPoolSize())));
 
         // Timeouts
-        cfg.setConnectionTimeout(5_000);
-        cfg.setValidationTimeout(2_000);
+        cfg.setConnectionTimeout(5_000); // 5 seconds
+        cfg.setValidationTimeout(2_000); // 2 seconds
 
         // Lifetime tuning
-        cfg.setIdleTimeout(60_000);
+        cfg.setIdleTimeout(60_000); // 1 minute
         cfg.setMaxLifetime(30 * 60_000); // 30 minutes
 
-        // We generally don't need keepalives unless you have NAT/proxy idle disconnects
         cfg.setKeepaliveTime(0);
 
         cfg.setAutoCommit(true);
-        cfg.setPoolName("SQL-mysql-" + Integer.toHexString(System.identityHashCode(conf)));
+        cfg.setPoolName("SQL-mysql-" + Integer.toHexString(System.identityHashCode(config)));
 
         // Connector/J performance properties
         cfg.addDataSourceProperty("cachePrepStmts", "true");

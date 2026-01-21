@@ -1,29 +1,10 @@
 package sifro.plugin.config;
 
+import javax.annotation.Nonnull;
+
 /**
- * Abstract class representing database configuration.
+ * Base configuration class for database connections.
+ *
+ * Contains no implementation details and serves as a parent for specific database configurations.
  */
-public abstract class DatabaseConfig {
-    private final int poolSize;
-    private boolean enableExecute = false;
-
-    DatabaseConfig(int poolSize) {
-        this.poolSize = poolSize;
-    }
-
-    public int getPoolSize() {
-        return this.poolSize;
-    }
-
-    /**
-     * !!!Enables the execute method. This can lead to SQL Injection if used improperly.!!!
-     */
-    public void iUnderstandThisIsDangerous() {
-        this.enableExecute = true;
-    }
-
-    public boolean isEnableExecute() {
-        return this.enableExecute;
-    }
-}
-
+public abstract class DatabaseConfig {}

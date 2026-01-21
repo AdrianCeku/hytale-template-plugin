@@ -1,25 +1,23 @@
 package sifro.plugin.config;
 
-import java.io.File;
+import java.nio.file.Path;
 
 /**
  * Configuration class for SQLite database connections.
  */
-public class SQLiteConfig extends DatabaseConfig {
-    File path;
+public class SQLiteConfig extends DatabaseConfig{
+    Path path;
 
     /**
-     * Constructs a SQLiteConfig with the specified parameters.
+     * Constructs a SQLiteConfig for the specified path.
      *
-     * @param path     The file path to the SQLite database.
-     * @param poolSize The size of the connection pool.
+     * @param path     The path to the SQLite database.
      */
-    public SQLiteConfig(File path, int poolSize) {
-        super(poolSize);
+    public SQLiteConfig(Path path) {
         this.path = path;
     }
 
-    public File getPath() {
+    public Path getPath() {
         return path;
     }
 }

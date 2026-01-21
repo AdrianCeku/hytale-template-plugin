@@ -75,11 +75,15 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
      * @param conf sqlite config containing path (and other settings)
      */
     public SQLiteDatabaseManager(SQLiteConfig conf) {
-        if (conf.getPath().getParentFile() != null && !conf.getPath().getParentFile().exists()) {
-            conf.getPath().getParentFile().mkdirs();
+        if(!conf.getPath().toFile().exists()) {
+            try {
+                conf.getPath().toFile().getParentFile().mkdirs();
+                conf.getPath().toFile().createNewFile();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create new SQLite database file at " + conf.getPath().toAbsolutePath(), e);
+            }
         }
-
-        this.jdbcUrl = "jdbc:sqlite:" + conf.getPath().getAbsolutePath();
+        this.jdbcUrl = "jdbc:sqlite:" + conf.getPath().toAbsolutePath();
 
         this.writer = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, jdbcUrl + "-writer");
@@ -179,27 +183,28 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
     @Override
     public void close() {
         optimizeScheduler.shutdown();
-        try {
-            optimizeScheduler.awaitTermination(2, TimeUnit.SECONDS);
-        } catch (InterruptedException ignored) {
-            Thread.currentThread().interrupt();
-        } finally {
-            optimizeScheduler.shutdownNow();
-        }
-
         writer.shutdown();
         reader.shutdown();
         try {
+            optimizeScheduler.awaitTermination((5), TimeUnit.SECONDS);
             writer.awaitTermination(5, TimeUnit.SECONDS);
             reader.awaitTermination(5, TimeUnit.SECONDS);
-        } catch (InterruptedException ignored) {
+
+
+            writerConn.close();
+            readerConn.close();
+        }
+        catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } finally {
+        }
+        catch (SQLException e) {
+            System.err.println("Failed to close SQLite connections for " + jdbcUrl);
+        }
+        finally {
+            optimizeScheduler.shutdownNow();
             writer.shutdownNow();
             reader.shutdownNow();
         }
-
-        try { writerConn.close(); } catch (SQLException ignored) {}
-        try { readerConn.close(); } catch (SQLException ignored) {}
     }
+
 }

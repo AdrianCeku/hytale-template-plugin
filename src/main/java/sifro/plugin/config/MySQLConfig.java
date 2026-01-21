@@ -1,6 +1,6 @@
 package sifro.plugin.config;
 /**
- * Configuration class for MySQL database connections.
+ * Configuration class for MySQL database connections, stores basic auth and connection info.
  */
 public class MySQLConfig extends DatabaseConfig {
     String host;
@@ -8,6 +8,7 @@ public class MySQLConfig extends DatabaseConfig {
     String database;
     String username;
     String password;
+    int poolSize;
 
     /**
      * Constructs a MySQLConfig with the specified parameters.
@@ -17,20 +18,18 @@ public class MySQLConfig extends DatabaseConfig {
      * @param database The name of the database.
      * @param username The username for authentication.
      * @param password The password for authentication.
-     * @param poolSize The size of the connection pool.
+     * @param poolSize The size of the HikariCP pool.
      */
     MySQLConfig(String host, String port, String database, String username, String password, int poolSize) {
-        super(poolSize);
         this.host = host;
         this.port = port;
         this.database = database;
         this.username = username;
         this.password = password;
+        this.poolSize = poolSize;
     }
 
-    public String getPassword() {
-        return this.password;
-    }
+    public String getPassword() { return this.password; }
 
     public String getUsername() {
         return this.username;
@@ -47,4 +46,6 @@ public class MySQLConfig extends DatabaseConfig {
     public String getHost() {
         return this.host;
     }
+
+    public int getPoolSize() { return this.poolSize; }
 }
