@@ -16,6 +16,32 @@ import java.util.List;
  */
 public class ConfigReader {
     private static final Gson GSON = new Gson();
+    private static final Path DEFAULT_CONFIG_PATH = Path.of("./default_db.json");
+    private static final String DEFAULT_CONFIG_CONTENT = """
+            {
+                "name": "default",
+                "type": "sqlite",
+                "path": "./data/database.db"
+            }
+            """;
+
+    /**
+     * Reads the default database configuration from {@code ./default_db.json}.
+     * If the file does not exist, creates it with a default SQLite configuration.
+     *
+     * @return DatabaseConfig parsed from the default config file
+     * @throws RuntimeException if the file cannot be read or created
+     */
+    public static DatabaseConfig readDefault() {
+        try {
+            if (!Files.exists(DEFAULT_CONFIG_PATH)) {
+                Files.writeString(DEFAULT_CONFIG_PATH, DEFAULT_CONFIG_CONTENT);
+            }
+            return readOne(DEFAULT_CONFIG_PATH);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read or create default database config", e);
+        }
+    }
 
     /**
      * Reads a single database configuration from a JSON file.
@@ -70,11 +96,11 @@ public class ConfigReader {
     }
 
     private static DatabaseConfig parseConfig(JsonObject obj) {
-        String name = getRequired(obj, "name", String.class);
         String type = getOptional(obj, "type", "sqlite", String.class);
 
         return switch (type.toLowerCase()) {
             case "mysql" -> new MySQLConfig(
+                    getRequired(obj, "name", String.class),
                     getRequired(obj, "host", String.class),
                     getOptional(obj, "port", "3306", String.class),
                     getRequired(obj, "database", String.class),
@@ -83,6 +109,7 @@ public class ConfigReader {
                     getOptional(obj, "poolSize", 10, Integer.class)
             );
             case "sqlite" -> new SQLiteConfig(
+                    getRequired(obj, "name", String.class),
                     Path.of(getRequired(obj, "path", String.class))
             );
             default -> throw new IllegalArgumentException("Unknown database type: " + type);

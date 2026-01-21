@@ -106,6 +106,7 @@ public abstract class DatabaseManager implements AutoCloseable {
                 closeConnection(conn);
             }
             catch (SQLException e) {
+                System.out.println("[DatabaseManager] Error executing SQL: " + sql + "\n" + e.toString());
                 throw new CompletionException(e);
             }
         }, writeExecutor());

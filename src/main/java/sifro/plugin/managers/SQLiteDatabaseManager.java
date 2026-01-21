@@ -2,6 +2,9 @@ package sifro.plugin.managers;
 
 import sifro.plugin.config.SQLiteConfig;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.*;
 import java.util.concurrent.*;
 
@@ -74,7 +77,19 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
      * @param conf sqlite config containing path (and other settings)
      */
     public SQLiteDatabaseManager(SQLiteConfig conf) {
-        this.jdbcUrl = "jdbc:sqlite:" + conf.getPath().toAbsolutePath();
+        Path dbPath = conf.getPath().toAbsolutePath().normalize();
+        this.jdbcUrl = "jdbc:sqlite:" + dbPath;
+
+        Path parentDir = dbPath.getParent();
+        if (parentDir != null && !Files.exists(parentDir)) {
+            try {
+                Files.createDirectories(parentDir);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to create database directory: " + parentDir, e);
+            }
+        }
+
+        System.out.println("[SQLite] Opening database at: " + dbPath);
 
         this.writer = Executors.newSingleThreadExecutor(r -> new Thread(r, jdbcUrl + "-writer"));
         this.reader = Executors.newSingleThreadExecutor(r -> new Thread(r, jdbcUrl + "-reader"));
@@ -84,22 +99,28 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
             this.writerConn = DriverManager.getConnection(jdbcUrl);
             this.readerConn = DriverManager.getConnection(jdbcUrl);
 
-            readerConn.setReadOnly(true);
+            //readerConn.setReadOnly(true);
 
             try (Statement wst = writerConn.createStatement();
                  Statement rst = readerConn.createStatement()) {
 
+                wst.execute("PRAGMA busy_timeout=5000;");
+                rst.execute("PRAGMA busy_timeout=5000;");
+
+                wst.execute("PRAGMA foreign_keys=ON;");
+                rst.execute("PRAGMA foreign_keys=ON;");
+
                 // Transaction journaling in a separate file. (https://www.sqlite.org/pragma.html#pragma_journal_mode)
-                wst.execute("PRAGMA journal_mode=WAL;");
-                rst.execute("PRAGMA journal_mode=WAL;"); // Probably doesn't matter for read-only connection, but just in case.
+                //wst.execute("PRAGMA journal_mode=WAL;");
+                //rst.execute("PRAGMA journal_mode=WAL;"); // Probably doesn't matter for read-only connection, but just in case.
 
                 // Better performance while still preventing data loss or corruption on system crashes,
                 // but pending executions might roll back. (https://www.sqlite.org/pragma.html#pragma_synchronous)
-                wst.execute("PRAGMA synchronous=NORMAL;");
-                rst.execute("PRAGMA synchronous=NORMAL;"); // Probably doesn't matter for read-only connection, but just in case.
+                //wst.execute("PRAGMA synchronous=NORMAL;");
+                //rst.execute("PRAGMA synchronous=NORMAL;"); // Probably doesn't matter for read-only connection, but just in case.
 
                 // 0x10002 = SQLITE_ANALYZE | SQLITE_OPTIMIZE (https://www.sqlite.org/pragma.html#pragma_optimize)
-                wst.execute("PRAGMA optimize=0x10002;");
+                //wst.execute("PRAGMA optimize=0x10002;");
             }
 
         } catch (SQLException e) {
@@ -142,6 +163,7 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
     @Override
     protected void closeConnection(Connection connection) {
         // pass
+        System.out.println("\"Closing\"");
     }
 
     /**
