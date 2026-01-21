@@ -1,12 +1,8 @@
 package sifro.plugin.managers;
 
-import com.zaxxer.hikari.HikariDataSource;
-
-import javax.annotation.Nonnull;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;

@@ -45,22 +45,22 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
     private final String jdbcUrl;
 
     /**
-     * Single-thread executor used to serialize writes (SQLite is effectively single-writer).
+     * Single-thread executor for writes (Due to SQLite connections essentially being file handles, it is effectively single-writer).
      */
     private final ExecutorService writer;
 
     /**
-     * Single-thread executor used to serialize reads (simple, predictable behavior).
+     * Single-thread executor for reads.
      */
     private final ExecutorService reader;
 
     /**
-     * Long-lived writer connection used by write executor tasks.
+     * Long-lived writer connection used by the write executor.
      */
     private final Connection writerConn;
 
     /**
-     * Long-lived reader connection used by read executor tasks.
+     * Long-lived reader connection used by the read executor.
      */
     private final Connection readerConn;
 
@@ -75,112 +75,73 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
      * @param conf sqlite config containing path (and other settings)
      */
     public SQLiteDatabaseManager(SQLiteConfig conf) {
-        super(null);
-        Objects.requireNonNull(conf, "conf");
-
-        // Ensure directory exists
         if (conf.getPath().getParentFile() != null && !conf.getPath().getParentFile().exists()) {
-            //noinspection ResultOfMethodCallIgnored
             conf.getPath().getParentFile().mkdirs();
         }
 
         this.jdbcUrl = "jdbc:sqlite:" + conf.getPath().getAbsolutePath();
 
-        // Writer executor: always one thread
         this.writer = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "sql-sqlite-writer");
+            Thread t = new Thread(r, jdbcUrl + "-writer");
             t.setDaemon(true);
             return t;
         });
 
-        // Reader executor: one thread for simplicity
         this.reader = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "sql-sqlite-reader");
+            Thread t = new Thread(r, jdbcUrl + "reader");
             t.setDaemon(true);
             return t;
         });
 
-        // Open long-lived connections and apply PRAGMAs
         try {
             this.writerConn = DriverManager.getConnection(jdbcUrl);
-            applyConnectionPragmas(writerConn, true);
 
             this.readerConn = DriverManager.getConnection(jdbcUrl);
-            applyConnectionPragmas(readerConn, false);
+            readerConn.setReadOnly(true);
 
-            // Startup optimize flags (recommended)
-            // 0x10002 = SQLITE_ANALYZE | SQLITE_OPTIMIZE
-            runStatement(writerConn, "PRAGMA optimize=0x10002;");
+            Statement wst = writerConn.createStatement();
+            Statement rst = readerConn.createStatement();
+
+            //Transaction journaling in a separate file.(https://www.sqlite.org/pragma.html#pragma_journal_mode)
+            wst.execute("PRAGMA journal_mode=WAL;");
+
+            // Better performance while still preventing data loss or corruption on system crashes, but pending executions might roll back (https://www.sqlite.org/pragma.html#pragma_synchronous)
+            wst.execute("PRAGMA synchronous=NORMAL;");
+            rst.execute("PRAGMA synchronous=NORMAL;");//Probably doesn't matter for read-only connection, but just in case.
+
+            // 0x10002 = SQLITE_ANALYZE | SQLITE_OPTIMIZE (https://www.sqlite.org/pragma.html#pragma_optimize)
+            wst.execute("PRAGMA optimize=0x10002;");
+
+
 
         } catch (SQLException e) {
-            // Clean up partial init best-effort
             try { writer.shutdownNow(); } catch (Throwable ignored) {}
             try { reader.shutdownNow(); } catch (Throwable ignored) {}
             throw new RuntimeException("Failed to initialize SQLite connections", e);
         }
 
-        // Periodic optimize (every 3 hours by default)
         this.optimizeScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "sql-sqlite-optimize");
+            Thread t = new Thread(r, jdbcUrl + "-optimize");
             t.setDaemon(true);
             return t;
         });
 
         this.optimizeScheduler.scheduleAtFixedRate(() -> {
-            // Run on writer connection to avoid concurrency and ensure it applies cleanly.
             try {
-                runStatement(writerConn, "PRAGMA optimize;");
+                Statement st = writerConn.createStatement();
+                st.execute("PRAGMA optimize;");
             } catch (Throwable ignored) {
+                System.err.println("Failed to run \"PRAGMA optimize\" on " + jdbcUrl);
             }
         }, 3, 3, TimeUnit.HOURS);
     }
 
     /**
-     * Applies performance-oriented PRAGMAs to a SQLite connection.
+     * Returns a JDBC connection to be used for a specific operation.
      *
-     * @param conn connection to configure
-     * @param writerConn whether this connection will be used for writes
-     * @throws SQLException if PRAGMA execution fails
-     */
-    private static void applyConnectionPragmas(Connection conn, boolean writerConn) throws SQLException {
-        // WAL improves read concurrency and is generally recommended for multi-threaded access.
-        runStatement(conn, "PRAGMA journal_mode=WAL;");
-
-        // NORMAL is a common performance/durability compromise (fewer fsyncs than FULL).
-        runStatement(conn, "PRAGMA synchronous=NORMAL;");
-
-        // Optional: helps avoid immediate "database is locked" failures under contention.
-        // Uncomment if you see "database is locked" frequently:
-        // runStatement(conn, "PRAGMA busy_timeout=5000;");
-
-        // Hint for reader connection (may be a no-op depending on driver)
-        if (!writerConn) {
-            try {
-                conn.setReadOnly(true);
-            } catch (SQLException ignored) {
-            }
-        }
-    }
-
-    /**
-     * Executes a simple statement (used for PRAGMAs).
+     * <p>Writes use the dedicated writer connection; reads use the dedicated reader connection.</p>
      *
-     * @param conn target connection
-     * @param sql sql statement to execute
-     * @throws SQLException if execution fails
-     */
-    private static void runStatement(Connection conn, String sql) throws SQLException {
-        try (Statement st = conn.createStatement()) {
-            st.execute(sql);
-        }
-    }
-
-    /**
-     * Provides a connection for a database operation.
-     *
-     * <p>Writes always use the dedicated writer connection; reads use the dedicated reader connection.</p>
-     *
-     * @param write true for write operations
+     * @param write returns writer connection if true, reader connection if false
      * @return connection to use
      */
     @Override
@@ -217,7 +178,6 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
      */
     @Override
     public void close() {
-        // Stop periodic optimize first
         optimizeScheduler.shutdown();
         try {
             optimizeScheduler.awaitTermination(2, TimeUnit.SECONDS);
@@ -227,7 +187,6 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
             optimizeScheduler.shutdownNow();
         }
 
-        // Stop accepting new DB work and let in-flight tasks finish
         writer.shutdown();
         reader.shutdown();
         try {
@@ -240,7 +199,6 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
             reader.shutdownNow();
         }
 
-        // Close connections
         try { writerConn.close(); } catch (SQLException ignored) {}
         try { readerConn.close(); } catch (SQLException ignored) {}
     }
