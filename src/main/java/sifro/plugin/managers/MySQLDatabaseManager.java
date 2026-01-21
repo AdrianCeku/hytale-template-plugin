@@ -6,7 +6,6 @@ import sifro.plugin.config.MySQLConfig;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Objects;
 import java.util.concurrent.*;
 
 /**
@@ -53,7 +52,7 @@ public final class MySQLDatabaseManager extends DatabaseManager {
      *
      * @return configured datasource
      */
-    private  HikariDataSource createDataSource() {
+    private HikariDataSource createDataSource() {
         HikariConfig cfg = new HikariConfig();
 
         String jdbcUrl = String.format(
@@ -113,6 +112,19 @@ public final class MySQLDatabaseManager extends DatabaseManager {
     }
 
     /**
+     * Releases a pooled connection back to Hikari.
+     *
+     * <p>In Hikari, calling {@link Connection#close()} returns the connection to the pool.</p>
+     *
+     * @param connection connection to release
+     * @throws SQLException if close fails
+     */
+    @Override
+    protected void closeConnection(Connection connection) throws SQLException {
+        connection.close();
+    }
+
+    /**
      * @return executor for writes
      */
     @Override
@@ -133,14 +145,16 @@ public final class MySQLDatabaseManager extends DatabaseManager {
      *
      * <p>Shutdown sequence:
      * <ol>
-     *   <li>shutdown executor (best-effort wait)</li>
      *   <li>close Hikari datasource</li>
+     *   <li>shutdown executors (max. 5sec wait)</li>
      * </ol>
      * </p>
      */
     @Override
     public void close() {
+        hikariDataSource.close();
         executor.shutdown();
+
         try {
             executor.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
@@ -149,6 +163,5 @@ public final class MySQLDatabaseManager extends DatabaseManager {
             executor.shutdownNow();
         }
 
-        hikariDataSource.close();
     }
 }

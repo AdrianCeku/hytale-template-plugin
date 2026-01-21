@@ -3,7 +3,6 @@ package sifro.plugin.managers;
 import sifro.plugin.config.SQLiteConfig;
 
 import java.sql.*;
-import java.util.Objects;
 import java.util.concurrent.*;
 
 /**
@@ -75,48 +74,33 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
      * @param conf sqlite config containing path (and other settings)
      */
     public SQLiteDatabaseManager(SQLiteConfig conf) {
-        if(!conf.getPath().toFile().exists()) {
-            try {
-                conf.getPath().toFile().getParentFile().mkdirs();
-                conf.getPath().toFile().createNewFile();
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to create new SQLite database file at " + conf.getPath().toAbsolutePath(), e);
-            }
-        }
         this.jdbcUrl = "jdbc:sqlite:" + conf.getPath().toAbsolutePath();
 
-        this.writer = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, jdbcUrl + "-writer");
-            t.setDaemon(true);
-            return t;
-        });
-
-        this.reader = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, jdbcUrl + "reader");
-            t.setDaemon(true);
-            return t;
-        });
+        this.writer = Executors.newSingleThreadExecutor(r -> new Thread(r, jdbcUrl + "-writer"));
+        this.reader = Executors.newSingleThreadExecutor(r -> new Thread(r, jdbcUrl + "-reader"));
+        this.optimizeScheduler = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, jdbcUrl + "-optimize"));
 
         try {
             this.writerConn = DriverManager.getConnection(jdbcUrl);
-
             this.readerConn = DriverManager.getConnection(jdbcUrl);
+
             readerConn.setReadOnly(true);
 
-            Statement wst = writerConn.createStatement();
-            Statement rst = readerConn.createStatement();
+            try (Statement wst = writerConn.createStatement();
+                 Statement rst = readerConn.createStatement()) {
 
-            //Transaction journaling in a separate file.(https://www.sqlite.org/pragma.html#pragma_journal_mode)
-            wst.execute("PRAGMA journal_mode=WAL;");
+                // Transaction journaling in a separate file. (https://www.sqlite.org/pragma.html#pragma_journal_mode)
+                wst.execute("PRAGMA journal_mode=WAL;");
+                rst.execute("PRAGMA journal_mode=WAL;"); // Probably doesn't matter for read-only connection, but just in case.
 
-            // Better performance while still preventing data loss or corruption on system crashes, but pending executions might roll back (https://www.sqlite.org/pragma.html#pragma_synchronous)
-            wst.execute("PRAGMA synchronous=NORMAL;");
-            rst.execute("PRAGMA synchronous=NORMAL;");//Probably doesn't matter for read-only connection, but just in case.
+                // Better performance while still preventing data loss or corruption on system crashes,
+                // but pending executions might roll back. (https://www.sqlite.org/pragma.html#pragma_synchronous)
+                wst.execute("PRAGMA synchronous=NORMAL;");
+                rst.execute("PRAGMA synchronous=NORMAL;"); // Probably doesn't matter for read-only connection, but just in case.
 
-            // 0x10002 = SQLITE_ANALYZE | SQLITE_OPTIMIZE (https://www.sqlite.org/pragma.html#pragma_optimize)
-            wst.execute("PRAGMA optimize=0x10002;");
-
-
+                // 0x10002 = SQLITE_ANALYZE | SQLITE_OPTIMIZE (https://www.sqlite.org/pragma.html#pragma_optimize)
+                wst.execute("PRAGMA optimize=0x10002;");
+            }
 
         } catch (SQLException e) {
             try { writer.shutdownNow(); } catch (Throwable ignored) {}
@@ -124,20 +108,14 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
             throw new RuntimeException("Failed to initialize SQLite connections", e);
         }
 
-        this.optimizeScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, jdbcUrl + "-optimize");
-            t.setDaemon(true);
-            return t;
-        });
-
+        // Optimize every  4 hours
         this.optimizeScheduler.scheduleAtFixedRate(() -> {
-            try {
-                Statement st = writerConn.createStatement();
+            try (Statement st = writerConn.createStatement()) {
                 st.execute("PRAGMA optimize;");
             } catch (Throwable ignored) {
                 System.err.println("Failed to run \"PRAGMA optimize\" on " + jdbcUrl);
             }
-        }, 3, 3, TimeUnit.HOURS);
+        }, 4, 4, TimeUnit.HOURS);
     }
 
     /**
@@ -151,6 +129,19 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
     @Override
     protected Connection getConnection(boolean write) {
         return write ? writerConn : readerConn;
+    }
+
+    /**
+     * Releases a connection after a DB operation.
+     *
+     * <p>SQLite connections in this manager are long-lived and must NOT be closed per operation,
+     * so this is intentionally passes.</p>
+     *
+     * @param connection connection used by the operation
+     */
+    @Override
+    protected void closeConnection(Connection connection) {
+        // pass
     }
 
     /**
@@ -174,9 +165,8 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
      *
      * <p>Shutdown sequence:
      * <ol>
-     *   <li>stop optimize scheduler</li>
-     *   <li>shutdown executors (best-effort wait)</li>
      *   <li>close connections</li>
+     *   <li>shutdown executors (max. 5 sec wait)</li>
      * </ol>
      * </p>
      */
@@ -185,26 +175,23 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
         optimizeScheduler.shutdown();
         writer.shutdown();
         reader.shutdown();
+
         try {
-            optimizeScheduler.awaitTermination((5), TimeUnit.SECONDS);
+            writerConn.close();
+            readerConn.close();
+
+            optimizeScheduler.awaitTermination(5, TimeUnit.SECONDS);
             writer.awaitTermination(5, TimeUnit.SECONDS);
             reader.awaitTermination(5, TimeUnit.SECONDS);
 
-
-            writerConn.close();
-            readerConn.close();
-        }
-        catch (InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             System.err.println("Failed to close SQLite connections for " + jdbcUrl);
-        }
-        finally {
+        } finally {
             optimizeScheduler.shutdownNow();
             writer.shutdownNow();
             reader.shutdownNow();
         }
     }
-
 }

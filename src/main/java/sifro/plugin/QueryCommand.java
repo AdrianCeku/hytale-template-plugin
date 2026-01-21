@@ -8,24 +8,22 @@ import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.CommandBase;
 import sifro.plugin.config.SQLiteConfig;
 import sifro.plugin.managers.DatabaseManager;
+import sifro.plugin.managers.SQLiteDatabaseManager;
 
 import javax.annotation.Nonnull;
-import java.io.File;
+import java.nio.file.Path;
 
 /**
  * This is an example command that will simply print the name of the plugin in chat when used.
  */
 public class QueryCommand extends CommandBase {
     private final RequiredArg<String> query;
-    private final DatabaseManager databaseManager;
+    private static final DatabaseManager databaseManager = SQL.getDatabase();
 
     public QueryCommand(String pluginName, String pluginVersion) {
         super("query", "Executes a query on the db.");
         this.setPermissionGroup(GameMode.Creative); // Allows the command to be used by anyone, not just OP
         query = withRequiredArg("query", "The SQL query to execute.", ArgTypes.STRING);
-
-        SQLiteConfig conf = new SQLiteConfig(new File("./test.sqlite"), 10);
-        databaseManager = new DatabaseManager(conf);
     }
 
     @Override
@@ -35,7 +33,7 @@ public class QueryCommand extends CommandBase {
             sqlQuery = sqlQuery.substring(1, sqlQuery.length() - 1);
         }
         try {
-            databaseManager.execute(sqlQuery);
+            databaseManager.executeAsync(sqlQuery);
         } catch (Exception e) {
             ctx.sendMessage(Message.raw(e.getMessage()));
         }
