@@ -1,8 +1,8 @@
-package sifro.plugin.managers;
+package sifro.sql.managers;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import sifro.plugin.config.MySQLConfig;
+import sifro.sql.config.MySQLConfig;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -22,6 +22,10 @@ import java.util.concurrent.*;
 public final class MySQLDatabaseManager extends DatabaseManager {
 
     /**
+     * JDBC URL for MySQL.
+     */
+    private final String jdbcUrl;
+    /**
      * Hikari datasource for MySQL connections.
      */
     private final HikariDataSource hikariDataSource;
@@ -32,35 +36,20 @@ public final class MySQLDatabaseManager extends DatabaseManager {
     private final ExecutorService executor;
 
     /**
-     * The supplied config.
-     */
-    private final MySQLConfig config;
-
-    /**
      * Creates a MySQLDatabaseManager using the provided config.
      *
-     * @param conf MySQL configuration
+     * @param config MySQL configuration
      */
-    public MySQLDatabaseManager(MySQLConfig conf) {
-        this.config = conf;
+    public MySQLDatabaseManager(MySQLConfig config) {
         this.executor = Executors.newCachedThreadPool();
-        this.hikariDataSource = createDataSource();
-    }
-
-    /**
-     * Builds and configures a Hikari datasource for MySQL.
-     *
-     * @return configured datasource
-     */
-    private HikariDataSource createDataSource() {
-        HikariConfig cfg = new HikariConfig();
-
-        String jdbcUrl = String.format(
+        this.jdbcUrl = String.format(
                 "jdbc:mysql://%s:%s/%s",
                 config.getHost(),
                 config.getPort(),
                 config.getDatabase()
         );
+
+        HikariConfig cfg = new HikariConfig();
 
         cfg.setJdbcUrl(jdbcUrl);
         cfg.setUsername(config.getUsername());
@@ -81,7 +70,7 @@ public final class MySQLDatabaseManager extends DatabaseManager {
         cfg.setKeepaliveTime(0);
 
         cfg.setAutoCommit(true);
-        cfg.setPoolName("SQL-mysql-" + Integer.toHexString(System.identityHashCode(config)));
+        cfg.setPoolName(jdbcUrl + "-pool");
 
         // Connector/J performance properties
         cfg.addDataSourceProperty("cachePrepStmts", "true");
@@ -96,7 +85,7 @@ public final class MySQLDatabaseManager extends DatabaseManager {
         cfg.addDataSourceProperty("elideSetAutoCommits", "true");
         cfg.addDataSourceProperty("maintainTimeStats", "false");
 
-        return new HikariDataSource(cfg);
+        this.hikariDataSource = new HikariDataSource(cfg);
     }
 
     /**
@@ -152,6 +141,7 @@ public final class MySQLDatabaseManager extends DatabaseManager {
      */
     @Override
     public void close() {
+        System.out.println("\n\n===========\nCLOSING MySQL MANAGERS FOR " + jdbcUrl + "\n===========\n\n");
         hikariDataSource.close();
         executor.shutdown();
 

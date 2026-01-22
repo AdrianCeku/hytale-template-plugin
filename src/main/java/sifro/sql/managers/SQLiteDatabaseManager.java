@@ -1,6 +1,6 @@
-package sifro.plugin.managers;
+package sifro.sql.managers;
 
-import sifro.plugin.config.SQLiteConfig;
+import sifro.sql.config.SQLiteConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -97,9 +97,10 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
 
         try {
             this.writerConn = DriverManager.getConnection(jdbcUrl);
-            this.readerConn = DriverManager.getConnection(jdbcUrl);
 
-            //readerConn.setReadOnly(true);
+            org.sqlite.SQLiteConfig readerCfg = new org.sqlite.SQLiteConfig();
+            readerCfg.setReadOnly(true);
+            this.readerConn = readerCfg.createConnection(jdbcUrl);
 
             try (Statement wst = writerConn.createStatement();
                  Statement rst = readerConn.createStatement()) {
@@ -111,21 +112,27 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
                 rst.execute("PRAGMA foreign_keys=ON;");
 
                 // Transaction journaling in a separate file. (https://www.sqlite.org/pragma.html#pragma_journal_mode)
-                //wst.execute("PRAGMA journal_mode=WAL;");
-                //rst.execute("PRAGMA journal_mode=WAL;"); // Probably doesn't matter for read-only connection, but just in case.
+                wst.execute("PRAGMA journal_mode=WAL;");
+                rst.execute("PRAGMA journal_mode=WAL;"); // Probably doesn't matter for read-only connection, but just in case.
 
                 // Better performance while still preventing data loss or corruption on system crashes,
                 // but pending executions might roll back. (https://www.sqlite.org/pragma.html#pragma_synchronous)
-                //wst.execute("PRAGMA synchronous=NORMAL;");
-                //rst.execute("PRAGMA synchronous=NORMAL;"); // Probably doesn't matter for read-only connection, but just in case.
+                wst.execute("PRAGMA synchronous=NORMAL;");
+                rst.execute("PRAGMA synchronous=NORMAL;"); // Probably doesn't matter for read-only connection, but just in case.
 
                 // 0x10002 = SQLITE_ANALYZE | SQLITE_OPTIMIZE (https://www.sqlite.org/pragma.html#pragma_optimize)
-                //wst.execute("PRAGMA optimize=0x10002;");
+                wst.execute("PRAGMA optimize=0x10002;");
             }
 
         } catch (SQLException e) {
-            try { writer.shutdownNow(); } catch (Throwable ignored) {}
-            try { reader.shutdownNow(); } catch (Throwable ignored) {}
+            try {
+                writer.shutdownNow();
+            } catch (Throwable ignored) {
+            }
+            try {
+                reader.shutdownNow();
+            } catch (Throwable ignored) {
+            }
             throw new RuntimeException("Failed to initialize SQLite connections", e);
         }
 
@@ -163,7 +170,6 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
     @Override
     protected void closeConnection(Connection connection) {
         // pass
-        System.out.println("\"Closing\"");
     }
 
     /**
@@ -194,6 +200,7 @@ public final class SQLiteDatabaseManager extends DatabaseManager {
      */
     @Override
     public void close() {
+        System.out.println("\n\n===========\nCLOSING SQLITE DB MANAGER FOR " + jdbcUrl + "\n===========\n\n");
         optimizeScheduler.shutdown();
         writer.shutdown();
         reader.shutdown();

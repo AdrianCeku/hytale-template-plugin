@@ -1,4 +1,4 @@
-package sifro.plugin.config;
+package sifro.sql.config;
 
 import java.nio.file.Path;
 

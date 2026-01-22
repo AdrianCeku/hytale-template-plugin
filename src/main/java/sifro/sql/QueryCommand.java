@@ -1,4 +1,4 @@
-package sifro.plugin;
+package sifro.sql;
 
 import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.Message;
@@ -6,12 +6,9 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.CommandBase;
-import sifro.plugin.config.SQLiteConfig;
-import sifro.plugin.managers.DatabaseManager;
-import sifro.plugin.managers.SQLiteDatabaseManager;
+import sifro.sql.managers.DatabaseManager;
 
 import javax.annotation.Nonnull;
-import java.nio.file.Path;
 
 /**
  * This is an example command that will simply print the name of the plugin in chat when used.
@@ -33,7 +30,7 @@ public class QueryCommand extends CommandBase {
             sqlQuery = sqlQuery.substring(1, sqlQuery.length() - 1);
         }
         try {
-            databaseManager.executeAsync(sqlQuery);
+            databaseManager.executeAsync(sqlQuery).get();
         } catch (Exception e) {
             ctx.sendMessage(Message.raw(e.getMessage()));
         }

@@ -1,4 +1,4 @@
-package sifro.plugin.config;
+package sifro.sql.config;
 /**
  * Configuration class for MySQL database connections, stores basic auth and connection info.
  */

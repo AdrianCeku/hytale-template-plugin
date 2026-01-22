@@ -1,4 +1,4 @@
-package sifro.plugin.managers;
+package sifro.sql.managers;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -39,7 +39,7 @@ import java.util.function.Function;
  * {@link #executeAsync(String)} takes in queries as raw strings. <b>Do not pass user input into it</b>.
  * Prefer using {@link #prepare(String)} + {@link #update(int, Object...)} / {@link #query(int, Object...)} where possible.
  */
-public abstract class DatabaseManager implements AutoCloseable {
+public abstract class DatabaseManager {
 
     /**
      * Prepared statement registry.
@@ -100,14 +100,20 @@ public abstract class DatabaseManager implements AutoCloseable {
      */
     public CompletableFuture<Void> executeAsync(String sql) {
         return CompletableFuture.runAsync(() -> {
-            try(Connection conn = getConnection(true);
-                Statement st = conn.createStatement()) {
-                st.execute(sql);
-                closeConnection(conn);
+            Connection conn = null;
+            try {
+                conn = getConnection(true);
+                try (Statement st = conn.createStatement()) {
+                    st.execute(sql);
+                }
             }
             catch (SQLException e) {
-                System.out.println("[DatabaseManager] Error executing SQL: " + sql + "\n" + e.toString());
+                System.out.println("[DatabaseManager] Error executing SQL: " + sql + "\n" + e);
                 throw new CompletionException(e);
+            } finally {
+                if (conn != null) {
+                    try { closeConnection(conn); } catch (SQLException ignored) {}
+                }
             }
         }, writeExecutor());
     }
@@ -170,15 +176,20 @@ public abstract class DatabaseManager implements AutoCloseable {
         final String sql = requireStatement(id);
 
         CompletableFuture.runAsync(() -> {
-            try(Connection conn = getConnection(true);
-                PreparedStatement st = conn.prepareStatement(sql)) {
-                bindParameters(st, params);
-                st.executeUpdate();
-
-                closeConnection(conn);
+            Connection conn = null;
+            try {
+                conn = getConnection(true);
+                try (PreparedStatement st = conn.prepareStatement(sql)) {
+                    bindParameters(st, params);
+                    st.executeUpdate();
+                }
             }
             catch (SQLException e) {
                 throw new CompletionException(e);
+            } finally {
+                if (conn != null) {
+                    try { closeConnection(conn); } catch (SQLException ignored) {}
+                }
             }
         }, writeExecutor());
     }
@@ -194,15 +205,20 @@ public abstract class DatabaseManager implements AutoCloseable {
         final String sql = requireStatement(id);
 
         CompletableFuture.runAsync(() -> {
-            try(Connection conn = getConnection(true);
-                PreparedStatement st = conn.prepareStatement(sql)) {
-                bindParameters(st, params);
-                st.executeUpdate();
-
-                closeConnection(conn);
+            Connection conn = null;
+            try {
+                conn = getConnection(true);
+                try (PreparedStatement st = conn.prepareStatement(sql)) {
+                    bindParameters(st, params);
+                    st.executeUpdate();
+                }
             }
             catch (Throwable t) {
                 onError.accept(t);
+            } finally {
+                if (conn != null) {
+                    try { closeConnection(conn); } catch (SQLException ignored) {}
+                }
             }
         }, writeExecutor());
     }
@@ -218,15 +234,21 @@ public abstract class DatabaseManager implements AutoCloseable {
         final String sql = requireStatement(id);
 
         return CompletableFuture.supplyAsync(() -> {
-            try(Connection conn = getConnection(true);
-                PreparedStatement st = conn.prepareStatement(sql)) {
-                bindParameters(st, params);
-                int rows = st.executeUpdate();
-                closeConnection(conn);
-                return rows;
+            Connection conn = null;
+            try {
+                conn = getConnection(true);
+                try (PreparedStatement st = conn.prepareStatement(sql)) {
+                    bindParameters(st, params);
+                    int rows = st.executeUpdate();
+                    return rows;
+                }
             }
             catch (SQLException e) {
                 throw new CompletionException(e);
+            } finally {
+                if (conn != null) {
+                    try { closeConnection(conn); } catch (SQLException ignored) {}
+                }
             }
         }, writeExecutor());
     }
@@ -272,10 +294,7 @@ public abstract class DatabaseManager implements AutoCloseable {
                 throw new CompletionException(e);
             } finally {
                 if (conn != null) {
-                    try {
-                        closeConnection(conn);
-                    } catch (SQLException ignored) {
-                    }
+                    try { closeConnection(conn); } catch (SQLException ignored) {}
                 }
             }
         }, readExecutor());
@@ -322,10 +341,7 @@ public abstract class DatabaseManager implements AutoCloseable {
                 throw new CompletionException(e);
             } finally {
                 if (conn != null) {
-                    try {
-                        closeConnection(conn);
-                    } catch (SQLException ignored) {
-                    }
+                    try { closeConnection(conn); } catch (SQLException ignored) {}
                 }
             }
         }, readExecutor());
@@ -394,6 +410,6 @@ public abstract class DatabaseManager implements AutoCloseable {
      * <p>Implementations must stop accepting new tasks, let in-flight tasks finish (best-effort),
      * then close any open JDBC resources.</p>
      */
-    @Override
     public abstract void close();
 }
+

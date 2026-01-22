@@ -1,4 +1,4 @@
-package sifro.plugin.config;
+package sifro.sql.config;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;

@@ -1,17 +1,16 @@
-package sifro.plugin;
+package sifro.sql;
 
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
-import sifro.plugin.config.ConfigReader;
-import sifro.plugin.config.DatabaseConfig;
-import sifro.plugin.config.MySQLConfig;
-import sifro.plugin.config.SQLiteConfig;
-import sifro.plugin.managers.DatabaseManager;
-import sifro.plugin.managers.MySQLDatabaseManager;
-import sifro.plugin.managers.SQLiteDatabaseManager;
+import sifro.sql.config.ConfigReader;
+import sifro.sql.config.DatabaseConfig;
+import sifro.sql.config.MySQLConfig;
+import sifro.sql.config.SQLiteConfig;
+import sifro.sql.managers.DatabaseManager;
+import sifro.sql.managers.MySQLDatabaseManager;
+import sifro.sql.managers.SQLiteDatabaseManager;
 
 import javax.annotation.Nonnull;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,14 +66,14 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p><b>Registering a MySQL database programmatically:</b>
  * <pre>{@code
- * MySQLConfig config = new MySQLConfig("localhost", "3306", "mydb", "user", "pass", 10);
- * MySQLDatabaseManager db = SQL.register("mydb", config);
+ * MySQLConfig config = new MySQLConfig("mydbname","localhost", "3306", "mydb", "user", "pass", 10);
+ * MySQLDatabaseManager db = SQL.register(config);
  * }</pre>
  *
  * <p><b>Registering a SQLite database programmatically:</b>
  * <pre>{@code
  * SQLiteConfig config = new SQLiteConfig("analytics", Path.of("./analytics.db"));
- * SQLiteDatabaseManager db = SQL.register("analytics", config);
+ * SQLiteDatabaseManager db = SQL.register(config);
  * }</pre>
  *
  * <p><b>Registering a database using generic config:</b>
@@ -111,12 +110,12 @@ public class SQL extends JavaPlugin {
         System.out.println("\n\n\n\n==============\n[SQL Plugin] Initializing database connections...\n==============\n\n\n\n");
         this.getCommandRegistry().registerCommand(new QueryCommand(this.getName(), this.getManifest().getVersion().toString()));
         System.out.println("Registered /query command.");
-        test();
     }
 
     /**
      * Closes all database connections on shutdown.
      */
+    @Override
     public void shutdown() {
         closeAll();
     }
@@ -245,17 +244,12 @@ public class SQL extends JavaPlugin {
      * Closes all database connections.
      */
     private static void closeAll() {
+        System.out.println("\n\n===========\nClosing all database connections...\n\n===========\n");
         ArrayList<DatabaseManager> managers = new ArrayList<>(databases.values());
         databases.clear();
 
         for (DatabaseManager manager : managers) {
             manager.close();
         }
-    }
-
-    private void test() {
-        DatabaseManager db = SQL.getDatabase();
-        db.executeAsync("CREATE TABLE IF NOT EXISTS test_table (id INT PRIMARY KEY, name VARCHAR(50));")
-          .thenAccept(result -> System.out.println("Table created or already exists."));
     }
 }

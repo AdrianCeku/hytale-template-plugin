@@ -1,6 +1,4 @@
-package sifro.plugin.config;
-
-import javax.annotation.Nonnull;
+package sifro.sql.config;
 
 /**
  * Base configuration class for database connections.

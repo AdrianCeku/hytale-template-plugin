@@ -2,7 +2,7 @@
     "Group": "sifro",
     "Name": "sql",
     "Version": "0.0.1",
-    "Description": "An wrapper for SQL Databases, using HikariCP and supporting SQLite",
+    "Description": "An fast and simple Wrapper for SQL Databases. Using HikariCP for connection pooling and support SQLite",
     "Authors": [
         {
             "Name": "Sifro"
@@ -17,6 +17,6 @@
         
     },
     "DisabledByDefault": false,
-    "Main": "sifro.plugin.SQL",
+    "Main": "sifro.sql.SQL",
     "IncludesAssetPack": false
 }
