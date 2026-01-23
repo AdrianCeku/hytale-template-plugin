@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id 'org.jetbrains.gradle.plugin.idea-ext' version '1.3'
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.gradleup.shadow") version "9.3.1"
 }
 
 repositories {
@@ -63,10 +63,9 @@ dependencies {
 
 //Bundle libraries in jar
 shadowJar {
-    archiveClassifier.set('')
-    relocate 'com.zaxxer.hikari', 'sifro.hytalemmo.libs.hikari'
-    relocate 'org.sqlite', 'sifro.hytalemmo.libs.sqlite'
-    relocate 'com.google.gson', 'sifro.hytalemmo.libs.gson'
+    relocate "com.zaxxer.hikari", "${maven_group}.libs.hikari"
+    relocate "org.sqlite", "${maven_group}.libs.sqlite"
+    relocate "com.google.gson", "${maven_group}.libs.gson"
 }
 
 // Create the working directory to run the server if it does not already exist.

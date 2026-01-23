@@ -1,4 +1,4 @@
-package sifro.sql.managers;
+package io.github.adrianceku.hytale_sql_plugin.managers;
 
 import java.sql.*;
 import java.util.ArrayList;

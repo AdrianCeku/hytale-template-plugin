@@ -1,4 +1,4 @@
-package sifro.sql.config;
+package io.github.adrianceku.hytale_sql_plugin.config;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;

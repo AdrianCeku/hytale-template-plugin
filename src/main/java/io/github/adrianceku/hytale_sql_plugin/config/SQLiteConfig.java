@@ -1,4 +1,4 @@
-package sifro.sql.config;
+package io.github.adrianceku.hytale_sql_plugin.config;
 
 import java.nio.file.Path;
 

@@ -1,14 +1,13 @@
-package sifro.sql;
-
+package io.github.adrianceku.hytale_sql_plugin;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
-import sifro.sql.config.ConfigReader;
-import sifro.sql.config.DatabaseConfig;
-import sifro.sql.config.MySQLConfig;
-import sifro.sql.config.SQLiteConfig;
-import sifro.sql.managers.DatabaseManager;
-import sifro.sql.managers.MySQLDatabaseManager;
-import sifro.sql.managers.SQLiteDatabaseManager;
+import io.github.adrianceku.hytale_sql_plugin.config.ConfigReader;
+import io.github.adrianceku.hytale_sql_plugin.config.DatabaseConfig;
+import io.github.adrianceku.hytale_sql_plugin.config.MySQLConfig;
+import io.github.adrianceku.hytale_sql_plugin.config.SQLiteConfig;
+import io.github.adrianceku.hytale_sql_plugin.managers.DatabaseManager;
+import io.github.adrianceku.hytale_sql_plugin.managers.MySQLDatabaseManager;
+import io.github.adrianceku.hytale_sql_plugin.managers.SQLiteDatabaseManager;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;

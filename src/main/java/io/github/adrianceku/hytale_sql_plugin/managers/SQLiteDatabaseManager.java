@@ -1,6 +1,6 @@
-package sifro.sql.managers;
+package io.github.adrianceku.hytale_sql_plugin.managers;
 
-import sifro.sql.config.SQLiteConfig;
+import io.github.adrianceku.hytale_sql_plugin.config.SQLiteConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;

@@ -1,14 +1,15 @@
 {
-    "Group": "sifro",
-    "Name": "sql",
+    "Group": "io.github.adrianceku",
+    "Name": "hytale_sql_plugin",
     "Version": "0.0.1",
-    "Description": "An fast and simple Wrapper for SQL Databases. Using HikariCP for connection pooling and support SQLite",
+    "Description": "A fast and simple, async first plugin to interface with SQL databases. It uses HikariCP and connection pooling to interact with MySQL Database and keeps a dedicated reader and writer thread for using SQLite Databases",
     "Authors": [
         {
-            "Name": "Sifro"
+            "Name": "Adrian Ceku",
+            "Website": "https://github.com/AdrianCeku"
         }
     ],
-    "Website": "sifro",
+    "Website": "https://github.com/AdrianCeku",
     "ServerVersion": "*",
     "Dependencies": {
         
@@ -17,6 +18,6 @@
         
     },
     "DisabledByDefault": false,
-    "Main": "sifro.sql.SQL",
+    "Main": "io.github.adrianceku.hytale_sql_plugin.SQL",
     "IncludesAssetPack": false
 }

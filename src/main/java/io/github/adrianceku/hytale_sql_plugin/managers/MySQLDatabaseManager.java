@@ -1,8 +1,8 @@
-package sifro.sql.managers;
+package io.github.adrianceku.hytale_sql_plugin.managers;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import sifro.sql.config.MySQLConfig;
+import io.github.adrianceku.hytale_sql_plugin.config.MySQLConfig;
 
 import java.sql.Connection;
 import java.sql.SQLException;
